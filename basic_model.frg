@@ -172,6 +172,14 @@ pred init {
     // Every dancer starts with an empty set of assignments
     // 'no' means the set must be empty
     all d: Dancer | no d.assignments
+
+    // Set up different availability patterns for dancers, 
+    // not all dancers are available for all time slots
+    some d: Dancer | some t: TimeSlot | t not in d.availability
+
+    // Every piece has at least one rehearsal slot
+    all p: Piece | some p.rehearsalSlots
+    
 }
 
 /*-----------------------------------------------------------------
