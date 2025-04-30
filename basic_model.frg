@@ -45,7 +45,16 @@ sig Dancer {
     
     // This tracks which pieces a dancer is assigned to over time
     // The 'var' keyword means this can change from one time step to the next
-    var assignments: set Piece
+    var assignments: set Piece,
+
+    // NEW: Strong preferences - pieces the dancer really wants to join
+    mustHavePreferences: set Piece,
+    
+    // NEW: Mild preferences - pieces the dancer would like to join
+    preferences: set Piece,
+    
+    // NEW: Pieces the dancer would prefer to avoid
+    avoidPreferences: set Piece
 }
 
 /* The Piece signature represents each dance performance/choreography.
@@ -63,7 +72,10 @@ sig Piece {
     
     // The maximum number of dancers this piece can accommodate
     // This might be based on choreography requirements or space limitations
-    maxDancers: one Int
+    maxDancers: one Int,
+
+    // The minimum number of dancers this piece can accommodate
+    minDancers: one Int
 }
 
 /* The TimeSlot signature represents specific time periods for rehearsals.
@@ -138,8 +150,88 @@ pred PieceSizeConstraints {
         let dancersInPiece = { d: Dancer | p in d.assignments } | {
             // ...then ensure the number of dancers doesn't exceed the maximum
             // The # operator counts the number of elements in a set
-            #dancersInPiece <= p.maxDancers
+            #dancersInPiece <= p.maxDancers and
+            #dancersInPiece >= p.minDancers
         }
+    }
+}
+
+/*-----------------------------------------------------------------
+ * NEW PREFERENCE-RELATED PREDICATES
+ *-----------------------------------------------------------------*/
+
+/* Calculates a dancer's satisfaction score based on their assignments
+ * and preferences. Higher score means better satisfaction.
+ *
+ * Scoring:
+ * +3 points for each must-have preference satisfied
+ * +1 point for each regular preference satisfied
+ * -2 points for each avoided preference assigned
+ */
+fun dancerSatisfactionScore[d: Dancer]: Int {
+    // Points for must-have preferences that were satisfied
+    let mustHaveSatisfied = #(d.assignments & d.mustHavePreferences) |
+    // Points for regular preferences that were satisfied
+    let preferencesSatisfied = #(d.assignments & d.preferences) |
+    // Negative points for avoided pieces that were assigned anyway
+    let avoidViolated = #(d.assignments & d.avoidPreferences) |
+    
+    // Calculate total score using weighted values
+    (multiply[mustHaveSatisfied, 3]) + preferencesSatisfied - (multiply[avoidViolated, 2])
+}
+
+/* Calculates the overall satisfaction score for all dancers.
+ * This gives us a metric to optimize.
+ */
+fun totalSatisfactionScore: Int {
+    sum d: Dancer | dancerSatisfactionScore[d]
+}
+
+/* The PreferenceConstraints predicate ensures some basic preference rules
+ * are enforced. These are "soft constraints" that should be satisfied when possible.
+ */
+pred PreferenceConstraints {
+    // Try to assign dancers to at least one of their must-have preferences
+    // if they have any and if it's feasible
+    all d: Dancer | some d.mustHavePreferences implies {
+        some (d.assignments & d.mustHavePreferences)
+    }
+
+    // Pieces can only be in one of the 3 preferences at a time
+    all p: Piece, d: Dancer | {
+        // Count how many times this piece appears in each preference set
+        let mustHaveCount = #(p & d.mustHavePreferences) |
+        let preferencesCount = #(p & d.preferences) |
+        let avoidCount = #(p & d.avoidPreferences) |
+        
+        // Ensure the piece is only in one of the three sets and there must be at least one piece in mustHave
+        mustHaveCount + preferencesCount + avoidCount <= 1
+    }
+    
+    // Try to avoid assigning dancers to pieces they want to avoid
+    all d: Dancer | {
+        // hard constraint version
+        #(d.assignments & d.avoidPreferences) < 1
+        // soft constraint version. Minimize overlap between assignments and avoid preferences
+        //#(d.assignments & d.avoidPreferences) <= 1
+    }
+}
+
+/*-----------------------------------------------------------------
+ * FAIRNESS METRICS
+ *-----------------------------------------------------------------*/
+
+/* Calculates how many pieces a dancer is assigned to */
+fun assignmentCount[d: Dancer]: Int {
+    #d.assignments
+}
+
+/* Checks if assignments are relatively balanced across dancers */
+pred FairDistribution {
+    // The difference in assignment count between any two dancers
+    // should not exceed 2 pieces
+    all d1, d2: Dancer | {
+        abs[(assignmentCount[d1] - assignmentCount[d2])] <= 2
     }
 }
 
@@ -157,11 +249,20 @@ pred validAssignment {
     // Every piece must have at least one dancer assigned to it
     // This prevents empty pieces with no dancers
     all p: Piece | some d: Dancer | p in d.assignments
+
+    // Every dancer should be assigned to at least one piece
+    all d: Dancer | some p: Piece | p in d.assignments
     
     // All core constraints must be satisfied
     NoScheduleConflicts
     DancerAvailability
     PieceSizeConstraints
+
+    // Satisfy preference constraints when possible
+    PreferenceConstraints
+
+    // Fairness considerations
+    FairDistribution
 }
 
 /* The init predicate defines the initial state of our system.
@@ -180,6 +281,25 @@ pred init {
     // Every piece has at least one rehearsal slot
     all p: Piece | some p.rehearsalSlots
     
+    // Ensure preferences are properly set up
+    all d: Dancer | {
+        // Must-have and avoid preferences shouldn't overlap
+        no (d.mustHavePreferences & d.avoidPreferences)
+
+        // Preferences and avoid preferences should be disjoint
+        no (d.preferences & d.avoidPreferences)
+
+        // Must-have and preferences should be disjoint
+        no (d.mustHavePreferences & d.preferences)
+        
+        // Preferences should be realistic - dancers must be available
+        all p: Piece | p in d.mustHavePreferences or p in d.preferences implies {
+            p.rehearsalSlots in d.availability
+        }
+        
+        // Minimum dancers is at least 1 and less than maximum
+        all p: Piece | p.minDancers >= 1 and p.minDancers <= p.maxDancers
+    }
 }
 
 /*-----------------------------------------------------------------
@@ -215,6 +335,18 @@ pred assignDancer[d: Dancer, p: Piece] {
         #dancersInPiece < p.maxDancers
     }
     
+    // Prioritize must-have preferences or regular preferences
+    // Only assign to avoided pieces if necessary
+    p in d.mustHavePreferences or 
+    p in d.preferences or
+    (p in d.avoidPreferences implies {
+        // Only assign to avoided pieces if:
+        // 1. The piece needs more dancers to meet minimum requirements
+        let currentDancerCount = #{ d2: Dancer | p in d2.assignments } | {
+            currentDancerCount < p.minDancers
+        }
+    })
+
     // --- ACTION ---
     
     // Add the piece to the dancer's assignments in the next state
@@ -245,6 +377,11 @@ pred unassignDancer[d: Dancer, p: Piece] {
     // The dancer must currently be assigned to the piece
     // Cannot unassign from a piece they're not in
     p in d.assignments
+
+    // Don't unassign if it would violate minimum dancers requirement
+    let currentDancerCount = #{ d2: Dancer | p in d2.assignments } | {
+        currentDancerCount > p.minDancers
+    }
     
     // --- ACTION ---
     
@@ -300,6 +437,37 @@ pred traces {
         (some d: Dancer, p: Piece | unassignDancer[d, p])
     }
 }
+/*-----------------------------------------------------------------
+ * OPTIMIZATION GOALS
+ *-----------------------------------------------------------------*/
+
+/* Specifies that we want to reach a valid assignment state
+ * that also maximizes overall dancer satisfaction
+ */
+// pred eventuallyOptimalValid {
+//     // Eventually reach a valid assignment
+//     eventually {
+//         validAssignment
+        
+//         // Optimization goal: maximize total satisfaction
+//         // No other valid assignment state should have a higher score
+//         all dancers: Dancer, assignments: Piece -> univ | {
+//             // If there's another valid configuration with different assignments
+//             (validAssignment and dancers.assignments != Dancer.assignments) implies {
+//                 // Then our current total satisfaction must be greater or equal
+//                 totalSatisfactionScore >= sum[d: Dancer | ]
+//                     // Calculate hypothetical satisfaction for comparison
+                
+//                     let hypotheticalAssignments = { p: Piece | p in d.assignments } |
+//                     let mustHaveSatisfied = #(hypotheticalAssignments & d.mustHavePreferences) |
+//                     let preferencesSatisfied = #(hypotheticalAssignments & d.preferences) |
+//                     let avoidViolated = #(hypotheticalAssignments & d.avoidPreferences) |
+//                     (mustHaveSatisfied * 3) + preferencesSatisfied - (avoidViolated * 2)
+            
+//             }
+//         }
+//     }
+// }
 
 /*-----------------------------------------------------------------
  * PROPERTIES TO CHECK
@@ -339,3 +507,9 @@ run {
     traces
     eventuallyValid
 } for 4 Dancer, 3 Piece, 5 TimeSlot, 4 Int
+
+/* Find a trace that leads to an optimal valid assignment maximizing satisfaction */
+// run {
+//     traces
+//     eventuallyOptimalValid
+// } for 4 Dancer, 3 Piece, 5 TimeSlot, 4 Int
