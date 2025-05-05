@@ -72,3 +72,11 @@ test suite for validAssignment {
     test expect {noDancerInternalConflict: {validAssignment and dancerHasInternalConflict} is unsat}
     test expect {noDancerExternalConflict: {validAssignment and dancerHasExternalConflict} is unsat}
 }
+
+test suite for NoScheduleConflicts {
+
+}
+
+test suite for DancerAvailability {
+    
+}
