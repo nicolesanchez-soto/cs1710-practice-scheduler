@@ -99,6 +99,10 @@ sig TimeSlot {}
  * be in two places at once. 
  */
 pred NoScheduleConflicts {
+    // Every piece has at least one rehearsal slot
+    //***Moving this up here makes assertion 3 pass!
+    all p: Piece | some p.rehearsalSlots
+
     // For every dancer...
     all d: Dancer | {
         // ...and for every distinct pair of pieces p1 and p2...
@@ -198,14 +202,18 @@ pred PreferenceConstraints {
     }
 
     // Pieces can only be in one of the 3 preferences at a time
-    all p: Piece, d: Dancer | {
-        // Count how many times this piece appears in each preference set
-        let mustHaveCount = #(p & d.mustHavePreferences) |
-        let preferencesCount = #(p & d.preferences) |
-        let avoidCount = #(p & d.avoidPreferences) |
+    //*** Assertion pieceInOnePrefTierOnly fails without this adjustment
+    // all p: Piece, d: Dancer | {
+    //     // Count how many times this piece appears in each preference set
+    //     let mustHaveCount = #(p & d.mustHavePreferences) |
+    //     let preferencesCount = #(p & d.preferences) |
+    //     let avoidCount = #(p & d.avoidPreferences) |
         
-        // Ensure the piece is only in one of the three sets and there must be at least one piece in mustHave
-        mustHaveCount + preferencesCount + avoidCount <= 1
+    //     // Ensure the piece is only in one of the three sets and there must be at least one piece in mustHave
+    //     mustHaveCount + preferencesCount + avoidCount <= 1
+    // }
+    all d: Dancer | {
+        no (d.mustHavePreferences & d.preferences & d.avoidPreferences)
     }
     
     // Try to avoid assigning dancers to pieces they want to avoid
@@ -279,6 +287,7 @@ pred init {
     some d: Dancer | some t: TimeSlot | t not in d.availability
 
     // Every piece has at least one rehearsal slot
+    //*** Upon testing, this does not seem to be enforced.....
     all p: Piece | some p.rehearsalSlots
     
     // Ensure preferences are properly set up

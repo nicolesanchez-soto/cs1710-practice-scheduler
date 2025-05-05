@@ -122,7 +122,7 @@ fun dancerSatisfactionScore[d: Dancer]: Int {
     let avoidViolated = #(d.assignments & d.avoidPreferences) |
     
     // Calculate total score using weighted values
-    (mul[mustHaveSatisfied, 3]) + preferencesSatisfied - (mul[avoidViolated, 2])
+    (multiply[mustHaveSatisfied, 3]) + preferencesSatisfied - (multiply[avoidViolated, 2])
 }
 
 /* Calculates the overall satisfaction score for all dancers.
@@ -164,7 +164,8 @@ pred FairDistribution {
     // The difference in assignment count between any two dancers
     // should not exceed 2 pieces
     all d1, d2: Dancer | {
-        (assignmentCount[d1] - assignmentCount[d2]).abs <= 2
+        (assignmentCount[d1] - assignmentCount[d2] <= 2 and
+        assignmentCount[d2] - assignmentCount[d1] <= 2)   
     }
 }
 
@@ -326,33 +327,39 @@ pred eventuallyOptimalValid {
         
         // Optimization goal: maximize total satisfaction
         // No other valid assignment state should have a higher score
-        all dancers: Dancer, assignments: Piece -> univ | {
-            // If there's another valid configuration with different assignments
-            (validAssignment and dancers.assignments != Dancer.assignments) implies {
-                // Then our current total satisfaction must be greater or equal
-                totalSatisfactionScore >= sum[d: Dancer |
-                    // Calculate hypothetical satisfaction for comparison
-                ]
-                    let hypotheticalAssignments = { p: Piece | p in d.assignments } |
-                    let mustHaveSatisfied = #(hypotheticalAssignments & d.mustHavePreferences) |
-                    let preferencesSatisfied = #(hypotheticalAssignments & d.preferences) |
-                    let avoidViolated = #(hypotheticalAssignments & d.avoidPreferences) |
-                    (mustHaveSatisfied * 3) + preferencesSatisfied - (avoidViolated * 2)
-            
-            }
+        // all dancers: Dancer, assignments: Piece -> univ | {
+        //     // If there's another valid configuration with different assignments
+        //     (validAssignment and dancers.assignments != Dancer.assignments) implies {
+        //         // Then our current total satisfaction must be greater or equal
+        //         totalSatisfactionScore >= sum[some d: Dancer |
+        //             // Calculate hypothetical satisfaction for comparison
+                
+        //             let hypotheticalAssignments = { p: Piece | p in d.assignments } |
+        //             let mustHaveSatisfied = #(hypotheticalAssignments & d.mustHavePreferences) |
+        //             let preferencesSatisfied = #(hypotheticalAssignments & d.preferences) |
+        //             let avoidViolated = #(hypotheticalAssignments & d.avoidPreferences) |
+        //             (mustHaveSatisfied * 3) + preferencesSatisfied - (avoidViolated * 2)
+        //         ]
+        //     }
+        // }
+
+
+        always {
+            validAssignment implies totalSatisfactionScore >= totalSatisfactionScore'
         }
     }
 }
+
 
 /*-----------------------------------------------------------------
  * RUN COMMANDS
  *-----------------------------------------------------------------*/
 
 /* Find a trace that leads to a valid assignment respecting preferences */
-run {
-    traces
-    eventually validAssignment
-} for 4 Dancer, 3 Piece, 5 TimeSlot, 4 Int
+// run {
+//     traces
+//     eventually validAssignment
+// } for 4 Dancer, 3 Piece, 5 TimeSlot, 4 Int
 
 /* Find a trace that leads to an optimal valid assignment maximizing satisfaction */
 run {
