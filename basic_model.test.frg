@@ -64,6 +64,7 @@ pred dancerHasExternalConflict {
 
 
 test suite for validAssignment {
+    // testing most common concerns!
     assert noEmptyPieces is necessary for validAssignment
     assert everyoneInAtLeastOnePiece is necessary for validAssignment
     assert allDancesHaveRehearsalTime is necessary for validAssignment
@@ -74,9 +75,21 @@ test suite for validAssignment {
 }
 
 test suite for NoScheduleConflicts {
-
+    
 }
 
 test suite for DancerAvailability {
-    
+
+}
+
+test suite for PieceSizeConstraints {
+
+}
+
+test suite for PreferenceConstraints {
+
+}
+
+test suite for FairDistribution {
+
 }
