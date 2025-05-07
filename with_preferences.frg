@@ -141,12 +141,24 @@ pred PreferenceConstraints {
     all d: Dancer | some d.mustHavePreferences implies {
         some (d.assignments & d.mustHavePreferences)
     }
+
+    // Pieces can only be in one of the 3 preferences at a time
+    all p: Piece, d: Dancer | {
+        // Count how many times this piece appears in each preference set
+        let mustHaveCount = #(p & d.mustHavePreferences) |
+        let preferencesCount = #(p & d.preferences) |
+        let avoidCount = #(p & d.avoidPreferences) |
+        
+        // Ensure the piece is only in one of the three sets and there must be at least one piece in mustHave
+        mustHaveCount + preferencesCount + avoidCount <= 1
+    }
     
     // Try to avoid assigning dancers to pieces they want to avoid
-    // Note: This is a soft constraint that may be violated if necessary
     all d: Dancer | {
-        // Minimize overlap between assignments and avoid preferences
-        #(d.assignments & d.avoidPreferences) <= 1
+        // hard constraint version
+        #(d.assignments & d.avoidPreferences) < 1
+        // soft constraint version. Minimize overlap between assignments and avoid preferences
+        //#(d.assignments & d.avoidPreferences) <= 1
     }
 }
 
@@ -164,8 +176,7 @@ pred FairDistribution {
     // The difference in assignment count between any two dancers
     // should not exceed 2 pieces
     all d1, d2: Dancer | {
-        (assignmentCount[d1] - assignmentCount[d2] <= 2 and
-        assignmentCount[d2] - assignmentCount[d1] <= 2)   
+        abs[(assignmentCount[d1] - assignmentCount[d2])] <= 2
     }
 }
 
@@ -177,6 +188,10 @@ pred FairDistribution {
 pred validAssignment {
     // Every piece must have dancers assigned
     all p: Piece | some d: Dancer | p in d.assignments
+
+    // Every dancer should be assigned to at least one piece
+    all d: Dancer | some p: Piece | p in d.assignments
+    
     
     // Core constraints must be satisfied
     NoScheduleConflicts
@@ -206,6 +221,12 @@ pred init {
     all d: Dancer | {
         // Must-have and avoid preferences shouldn't overlap
         no (d.mustHavePreferences & d.avoidPreferences)
+        
+        // Preferences and avoid preferences should be disjoint
+        no (d.preferences & d.avoidPreferences)
+
+        // Must-have and preferences should be disjoint
+        no (d.mustHavePreferences & d.preferences)
         
         // Preferences should be realistic - dancers must be available
         all p: Piece | p in d.mustHavePreferences or p in d.preferences implies {
@@ -313,6 +334,18 @@ pred traces {
     }
 }
 
+pred eventuallyValid {
+    // At some point in the future, a valid assignment must be reached
+    // The 'eventually' keyword is a temporal operator meaning 
+    // "at some current or future state"
+    eventually validAssignment
+}
+
+pred eventuallyValidTrace {
+    traces
+    eventuallyValid
+}
+
 /*-----------------------------------------------------------------
  * OPTIMIZATION GOALS
  *-----------------------------------------------------------------*/
@@ -344,9 +377,9 @@ pred eventuallyOptimalValid {
         // }
 
 
-        always {
-            validAssignment implies totalSatisfactionScore >= totalSatisfactionScore'
-        }
+        // always {
+        //     validAssignment implies totalSatisfactionScore >= totalSatisfactionScore'
+        // }
     }
 }
 
@@ -356,13 +389,12 @@ pred eventuallyOptimalValid {
  *-----------------------------------------------------------------*/
 
 /* Find a trace that leads to a valid assignment respecting preferences */
-// run {
-//     traces
-//     eventually validAssignment
-// } for 4 Dancer, 3 Piece, 5 TimeSlot, 4 Int
+run {
+    eventuallyValidTrace
+} for 4 Dancer, 3 Piece, 5 TimeSlot, 4 Int
 
 /* Find a trace that leads to an optimal valid assignment maximizing satisfaction */
-run {
-    traces
-    eventuallyOptimalValid
-} for 4 Dancer, 3 Piece, 5 TimeSlot, 4 Int
+// run {
+//     traces
+//     eventuallyOptimalValid
+// } for 4 Dancer, 3 Piece, 5 TimeSlot, 4 Int
