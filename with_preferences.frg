@@ -101,6 +101,7 @@ pred PieceSizeConstraints {
     }
 }
 
+
 /*-----------------------------------------------------------------
  * NEW PREFERENCE-RELATED PREDICATES
  *-----------------------------------------------------------------*/
@@ -160,6 +161,12 @@ pred PreferenceConstraints {
         // soft constraint version. Minimize overlap between assignments and avoid preferences
         //#(d.assignments & d.avoidPreferences) <= 1
     }
+
+    // Dancers should only mark pieces as preferred if they can attend those rehearsals
+    all d: Dancer, p: Piece | {
+        (p in d.mustHavePreferences or p in d.preferences) implies
+        p.rehearsalSlots in d.availability
+    }
 }
 
 /*-----------------------------------------------------------------
@@ -198,11 +205,11 @@ pred validAssignment {
     DancerAvailability
     PieceSizeConstraints
     
-    // NEW: Preference considerations
+    // Preference considerations
     // This makes it a goal to satisfy preferences when possible
     PreferenceConstraints
     
-    // NEW: Fairness considerations
+    // Fairness considerations
     FairDistribution
 }
 
@@ -294,7 +301,7 @@ pred unassignDancer[d: Dancer, p: Piece] {
     // The dancer must currently be assigned to the piece
     p in d.assignments
     
-    // NEW: Don't unassign if it would violate minimum dancers requirement
+    // Don't unassign if it would violate minimum dancers requirement
     let currentDancerCount = #{ d2: Dancer | p in d2.assignments } | {
         currentDancerCount > p.minDancers
     }
