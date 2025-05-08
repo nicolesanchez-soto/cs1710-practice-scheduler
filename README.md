@@ -41,15 +41,13 @@ We also probably bit off more than we could chew given our coding experience wit
 
 Instead, we pivoted to work more on the model itself and found that with careful sig organization, some color-coding and filtering using Cope and Drag in the default Sterling visualization, we could still make the output readable enough for our purposes. We marked all the attributes of the Sigs (rehearsalSlots, availability, min/maxDancers, etc.) as attributes in the visualizer and left the assignments to be visualized with arrows, which actually worked pretty well.
 
-This change let us focus more on what we cared about most - getting the preference weighting system and conflict resolution to work correctly. In the end, we think the model itself turned out more sophisticated because we spent less time fighting with visualization code!
+This change let us focus more on what we cared about most - getting the preference weighting system and conflict resolution to work correctly.
 
 ## What the Model Proves
 
 The model demonstrates that a valid assignment state is achievable under basic logistical constraints. In this state, no dancer is double-booked, all rehearsal availability is respected, and no piece exceeds its maximum capacity. However, once strong or conflicting preferences are introduced, the model reveals that it is often impossible to satisfy everyone's must-haves and avoids while still maintaining a conflict-free and valid assignment.
 
 What the model can achieve instead is a fairer distribution of satisfaction across dancers. Rather than maximizing preference fulfillment for a few individuals, the model supports solutions that aim for a more equal standard of satisfaction across the team. These findings highlight the tension between individual preferences and collective feasibility.
-
-(there's a couple of tests i can reference here, the commented out pair of unfortunate situations lol / do we want to do the compare to existing prefs here)
 
 ## Understanding Model Instances and Visualization
 
