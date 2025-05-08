@@ -164,6 +164,33 @@ pred balancedSatisfaction {
     }
 }
 
+pred dancerReassignment {
+    some d: Dancer, p1, p2: Piece | {
+        // p1 and p2 must be different pieces
+        p1 != p2
+        // Initial state: dancer is not assigned to either piece
+        init implies {
+            p1 not in d.assignments and p2 not in d.assignments
+        }
+        
+        // First, dancer gets assigned to p1
+        eventually {
+            p1 in d.assignments and p2 not in d.assignments
+            
+            // Then, dancer gets unassigned from p1
+            eventually {
+                p1 not in d.assignments and p2 not in d.assignments
+                
+                // Finally, dancer gets assigned to p2 instead
+                eventually {
+                    p1 not in d.assignments and p2 in d.assignments
+                }
+            }
+        }
+    }
+}
+
+
 // exploring preference vs. assignment possibilities!
 test suite for eventuallyValidTrace {
     test expect {aDancerWithNoAvailabity: {dancerIsNeverAvailable and eventuallyValidTrace} is sat}
@@ -191,6 +218,6 @@ test suite for eventuallyValidTrace {
     test expect {balanceDancerSatisfaction: {balancedSatisfaction and eventuallyValidTrace} is sat}
     test expect {preferencesVsFairnessTradeoff: {preferenceVsFairness and eventuallyValidTrace} is sat}
     test expect {fairAssignment: {FairDistribution and eventuallyValidTrace} is sat}
-    test expect {dancersBothWant: {competingPreferences and eventuallyValidTrace} is sat}    
-
+    test expect {dancersBothWant: {competingPreferences and eventuallyValidTrace} is sat}  
+    test expect {reassignmentPath: {dancerReassignment and eventuallyValidTrace} is sat}  
 }

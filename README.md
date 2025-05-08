@@ -18,9 +18,7 @@ The model uses a *traces* predicate to organize valid execution paths over time.
 
 One of our main design decisions was how to represent dancer preferences. We initially attempted a ranked list or numeric scoring system, but found it too complex to encode and reason about in Forge. We switched to a tiered system (*mustHave*, *prefer*, *avoid*), which offered a clearer and more flexible way to express soft preferences without relying on fragile numeric logic (which we saw could get out of hand with more than 7 pieces because of bitwidth restrictions). This choice made the model more expressive while keeping constraints manageable.
 
-**
-We also chose to model assignment changes temporally, allowing dancers to be incrementally added or removed across time steps. This better reflects the real scheduling dynamics an e-board navigates, like iteratively refining casts, rather than assuming a single instant where everything is assigned. To keep the model manageable, we simplified piece scheduling by fixing rehearsal slots per piece, avoiding the complexity of choosing rehearsal times dynamically. Finally, we scoped our fairness modeling to the dancer’s perspective (excluding choreographer input, for example) in order to focus more clearly on logistical feasibility and equitable distribution of opportunity.
-**
+We also chose to model assignment changes temporally, allowing dancers to be added or removed across time steps. This better reflects the real scheduling dynamics an e-board navigates, like iteratively refining casts, rather than assuming a single instant where everything is assigned. To keep the model manageable, we simplified piece scheduling by fixing rehearsal slots per piece, avoiding the complexity of choosing rehearsal times dynamically. Finally, we scoped our fairness modeling to the dancer’s perspective (excluding choreographer input, for example) in order to focus more clearly on logistical feasibility and equitable distribution of opportunity.
 
 
 ## Scope and Assumptions
@@ -31,7 +29,19 @@ It also assumes perfect knowledge of all dancer availability and preferences fro
 
 ## Changes from the Proposal
 
-** (I'm thinking here we can talk about the visualizer!!) **
+One of the biggest changes from our original proposal was our plan for visualization. We initially wanted to create a custom visualizer that would look like an actual dance team schedule - basically a colorful table or spreadsheet (which is what most E-boards use when manually making assignments), with dancers' names, pieces, and time slots all organized neatly.
+
+We checked "Yes" on the intention to create a custom visualizer script, but honestly, we hit some walls with this. When we tried implementing it with JavaScript to work with Sterling, we ran into several issues:
+
+First, showing all the temporal data (like who's assigned when and where) in a table format while still keeping all the constraint relationships visible was way harder than we thought. The connections between time slots, pieces, and dancers got a bit messy to display correctly.
+
+Second, we underestimated how much work it would take to modify Sterling to show something completely different from its origional visualization. We spent a few late nights trying different approaches but kept hitting dead ends with the integration.
+
+We also probably bit off more than we could chew given our coding experience with Sterling's visualization system. None of us had worked with it before, and the learning curve was steeper than expected.
+
+Instead, we pivoted to work more on the model itself and found that with careful sig organization, some color-coding and filtering using Cope and Drag in the default Sterling visualization, we could still make the output readable enough for our purposes. We marked all the attributes of the Sigs (rehearsalSlots, availability, min/maxDancers, etc.) as attributes in the visualizer and left the assignments to be visualized with arrows, which actually worked pretty well.
+
+This change let us focus more on what we cared about most - getting the preference weighting system and conflict resolution to work correctly. In the end, we think the model itself turned out more sophisticated because we spent less time fighting with visualization code!
 
 ## What the Model Proves
 
@@ -43,12 +53,12 @@ What the model can achieve instead is a fairer distribution of satisfaction acro
 
 ## Understanding Model Instances and Visualization
 
-Upon running a trace, each instance has a sequence of states that show how assignments evolve over time. To interpret a sample instance, begin by looking at the initial state to see which dancer availability and piece rehearsal slot designation, and then step forward through the trace to see assignments. 
+Upon running a trace, each instance represents a timeline of system states showing how dancers are gradually assigned to pieces. These states form a progression: you can start with the **initial state** to understand the foundational setup—who is available when, which rehearsal slots are linked to each piece, and what the initial preferences are. From there, you can step forward through the trace to see how dancer-piece assignments evolve.
 
-(next part dependent on visualizer status!!)
+We found it helpful to **treat all static attributes of the signatures—like `availability`, `rehearsalSlots`, `minDancers`, and `maxDancers`—as attributes in the visualizer**, and to **leave the dynamic dancer-to-piece assignments as arrows**. This keeps the visualization readable and focused, making it easier to spot trends in how dancers get assigned over time.
 
-**
-We found it helpful to mark all the attributes of the Sigs (rehearsalSlots, availability, min/maxDancers, etc) as attributes, and just leave the assignments to be visualized with arrows.
-**
+The most interesting patterns usually emerge around the middle, where you can see the model making tradeoffs between availability constraints and preference satisfaction. For complex conflicts (like when two dancers want the same piece but have different availability), you'll notice the model favoring feasible, fair outcomes—sometimes satisfying strong preferences, and other times distributing assignments more evenly to maintain fairness and avoid scheduling conflicts.
 
 ## Collaboration
+
+N/A
