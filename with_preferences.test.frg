@@ -24,14 +24,14 @@ test suite for init {
     assert pieceInOnePrefTierOnly is necessary for init   
 }
 
-
-
+// dancer is never available for any rehearsal slots, basic model test
 pred dancerIsNeverAvailable {
     some d: Dancer {
         no d.availability implies no d.assignments
     }
 }
 
+// tests for example where a dancer is assigned to a piece they wanted to avoid (should never happen)
 pred assignedToAvoidedPieceDueToNecessity {
     #Dancer = 3
     some d: Dancer, p: Piece | {
@@ -50,6 +50,7 @@ pred assignedToAvoidedPieceDueToNecessity {
   }
 }
 
+// tests for case where dancer doesn't get their must-have
 pred mustHaveNeverSatisfied {
     always {
         some d: Dancer | {
@@ -59,6 +60,7 @@ pred mustHaveNeverSatisfied {
     }
 }
 
+// a piece that is popular but no one can be assigned to it
 pred popularPieceGoesUnassigned {
     some p: Piece | {
         some d: Dancer | p in d.mustHavePreferences + d.preferences
@@ -66,16 +68,19 @@ pred popularPieceGoesUnassigned {
     }
 }
 
+// a dancer that doesn't want to be in any piece
 pred allAvoidEverything {
     all d: Dancer, p: Piece | p in d.avoidPreferences
 }
 
+// some extreme case where a dancer wants to be in every piece
 pred oneDancerWantsEveryPiece {
     // some non-trivial amount of pieces to represent an extreme case
     #Piece >= 5
     some d: Dancer | d.mustHavePreferences = Piece
 }
 
+// tests that preferences are evenly distributed
 pred evenPreferenceDistribution {
     // every piece is someone's preference
     all p: Piece | some d: Dancer | 
@@ -87,7 +92,7 @@ pred evenPreferenceDistribution {
         abs[(#(d.mustHavePreferences + d.preferences)) - avgPrefsPerDancer] <= 1
 }
 
-
+// makes sure score is calculated correctly
 pred satisfactionScoreCalculatesCorrectly {
     all d: Dancer | {
         let mustHaveSatisfied = #(d.assignments & d.mustHavePreferences) |
@@ -180,7 +185,7 @@ test suite for eventuallyValidTrace {
     // doesn't allow dancers to be assigned to avoided pieces or for must-haves to go unsatisfied
     test expect {avoidedAssignment: {assignedToAvoidedPieceDueToNecessity and eventuallyValidTrace} is unsat}
     test expect {mustHaveUnsatisfied: {mustHaveNeverSatisfied and eventuallyValidTrace} is unsat}
-        
+
     // conflict resolution tests
     test expect {resolveScheduleConflicts: {schedulingConflictResolution and eventuallyValidTrace} is sat}
     test expect {balanceDancerSatisfaction: {balancedSatisfaction and eventuallyValidTrace} is sat}
